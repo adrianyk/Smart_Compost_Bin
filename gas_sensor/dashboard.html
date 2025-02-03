@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Compost Bin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Smart Compost Bin Dashboard</h1>
+    
+    <h3>Sensor Readings</h3>
+    <p><strong>CO₂:</strong> <span id="co2">Loading...</span> ppm</p>
+    <p><strong>TVOCs:</strong> <span id="tvoc">Loading...</span> ppb</p>
+    <p><strong>Temperature:</strong> <span id="temperature">Loading...</span> °C</p>
+    <p><strong>Moisture:</strong> <span id="moisture">Loading...</span> %</p>
+
+    <h3>Recommended Actions</h3>
+    <p id="recommendations">Waiting for data...</p>
+
+    <h3>Air Quality Graph</h3>
+    <canvas id="sensorChart"></canvas>
+
+    <script>
+        async function fetchSensorData() {
+            try {
+                const response = await fetch("/sensor");
+                const data = await response.json();
+
+                if (data.co2 !== null && data.tvoc !== null) { 
+                    document.getElementById("co2").innerText = data.co2;
+                    document.getElementById("tvoc").innerText = data.tvoc;
+                    document.getElementById("temperature").innerText = data.temperature;
+                    document.getElementById("moisture").innerText = data.moisture;
+
+                    console.log("📌 Debug - API Response:", data);
+
+                    if (data.recommendations && data.recommendations.compact_summary) {
+                        document.getElementById("recommendations").innerText = data.recommendations.compact_summary;
+                    } else {
+                        document.getElementById("recommendations").innerText = "No recommendations available.";
+                    }
+
+                    // ✅ Update Graph
+                    updateChart(chart, data);
+
+                } else {
+                    console.warn("⚠️ Ignored unstable reading (CO₂ or TVOC = null)");
+                    document.getElementById("recommendations").innerText = "⚠️ Unstable reading, waiting for valid data...";
+                }
+
+            } catch (error) {
+                console.error("⚠️ Error fetching sensor data:", error);
+                document.getElementById("recommendations").innerText = "⚠️ Error retrieving data from server!";
+            }
+
+            setTimeout(fetchSensorData, 2000);
+        }
+
+        // Initialize the Chart
+        const ctx = document.getElementById("sensorChart").getContext("2d");
+        const chart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [
+                    { label: "CO₂ (ppm)", data: [], borderColor: "blue", fill: false },
+                    { label: "TVOCs (ppb)", data: [], borderColor: "green", fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: "Time" }},
+                    y: { title: { display: true, text: "Value" }}
+                }
+            }
+        });
+
+        // ✅ Fixed Graph Update Function
+        function updateChart(chart, data) {
+            const currentTime = new Date().toLocaleTimeString();
+
+            // ✅ Ensure only valid readings are plotted
+            if (data.co2 !== null && data.tvoc !== null) {
+                chart.data.labels.push(currentTime);
+                chart.data.datasets[0].data.push(data.co2);
+                chart.data.datasets[1].data.push(data.tvoc);
+
+                // Keep only last 20 points for better performance
+                if (chart.data.labels.length > 20) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                    chart.data.datasets[1].data.shift();
+                }
+
+                chart.update();
+            } else {
+                console.warn("⚠️ No valid sensor data available for chart.");
+            }
+        }
+
+        fetchSensorData();
+    </script>
+</body>
+</html>
