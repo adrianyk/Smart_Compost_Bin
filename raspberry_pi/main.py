@@ -1,0 +1,140 @@
+import time
+import smbus2
+
+# Initialize a single I2C bus (bus number 1 is typical on a Raspberry Pi Zero)
+bus = smbus2.SMBus(1)
+
+# Temperature Sensor (Si7021)
+SI7021_ADDR = 0x40
+SI7021_TEMP_CMD = 0xF3
+
+# Moisture Sensor via ADC (ADS1115)
+ADS1115_ADDR = 0x48
+ADS1115_CONVERSION_REG = 0x00
+ADS1115_CONFIG_REG = 0x01
+ADS1115_CONFIG = 0x8583
+""" The configuration value for a single-shot conversion on A0.
+This configuration uses:
+ - OS (bit 15) = 1 (start a conversion)
+ - MUX (bits 14:12) = 100 for A0 vs. GND
+ - PGA (bits 11:9) = 010 for ±2.048V
+ - MODE (bit 8) = 1 for single-shot mode
+ - DR (bits 7:5) = 100 for 128 SPS
+ - Comparator bits (bits 4:0) = default (disabled) """
+
+# Gas Sensor (CCS811)
+CCS811_ADDR = 0x5A
+CCS811_STATUS_REG = 0x00
+CCS811_MEAS_MODE_REG = 0x01
+CCS811_ALG_RESULT_DATA = 0x02
+CCS811_APP_START = 0xF4
+CCS811_HW_ID = 0x20
+
+def read_temperature():
+    """Read temperature from the Si7021 sensor."""
+    try:
+        # Create a write transaction that sends the command to measure temperature
+        cmd_meas_temp = smbus2.i2c_msg.write(SI7021_ADDR, [SI7021_TEMP_CMD])
+        
+        # Create a read transaction that reads 2 bytes of data
+        read_result = smbus2.i2c_msg.read(SI7021_ADDR, 2)
+    
+        # Execute the two transactions: write and then read (with a delay in between)
+        bus.i2c_rdwr(cmd_meas_temp)
+        time.sleep(0.1)
+        bus.i2c_rdwr(read_result)
+    
+        # Combine the 2 bytes and convert to an int
+        temperature = int.from_bytes(read_result.buf[0] + read_result.buf[1], 'big')
+        
+        return temperature
+    
+    except Exception as e:
+        print("Error reading temperature sensor:", e)
+        return None
+
+def read_moisture():
+    """Read ADC value from the ADS1115 for the moisture sensor."""
+    try:
+        # Convert CONFIG to two bytes in big-endian order
+        config_bytes = ADS1115_CONFIG.to_bytes(2, byteorder='big')
+    
+        # Write the configuration to the CONFIG_REG to start a single-shot conversion
+        bus.write_i2c_block_data(ADS1115_ADDR, ADS1115_CONFIG_REG, list(config_bytes))
+    
+        # Wait for conversion to complete (100ms is sufficient for 128 SPS)
+        time.sleep(0.1)
+    
+        # Read the conversion result (2 bytes from the conversion register)
+        data = bus.read_i2c_block_data(ADS1115_ADDR, ADS1115_CONVERSION_REG, 2)
+        adc_value = int.from_bytes(data, byteorder='big', signed=True)
+        
+        return adc_value
+    
+    except Exception as e:
+        print("Error reading moisture sensor:", e)
+        return None
+
+def initialize_gas_sensor():
+    """Initializes the CCS811 gas sensor."""
+    try:
+        print("🔄 Resetting CCS811 sensor...")
+        
+        # Start the application firmware on the CCS811
+        bus.write_byte(CCS811_ADDR, CCS811_APP_START)
+        time.sleep(1)  # Allow the sensor to start
+
+        # Set mode to read every second
+        bus.write_byte_data(CCS811_ADDR, CCS811_MEAS_MODE_REG, 0x10)
+        print("✅ Gas sensor is ready. Waiting 20 seconds for stabilization...")
+        time.sleep(20)
+        
+    except Exception as e:
+        print("Error initializing gas sensor:", e)
+
+def read_gas_sensor():
+    """ Reads CO₂ and TVOC values from the CCS811 sensor, filtering out invalid readings. """
+    try:
+        status = bus.read_byte_data(CCS811_ADDR, CCS811_STATUS_REG)
+        
+        if status & 0x08:   # Data ready
+            data = bus.read_i2c_block_data(CCS811_ADDR, CCS811_ALG_RESULT_DATA, 8)
+            co2 = (data[0] << 8) | (data[1] & 0xFF)
+            tvoc = (data[2] << 8) | (data[3] & 0xFF)
+
+            # Ignore unrealistic readings
+            if co2 > 5000 or tvoc > 2000:
+                print("⚠️ Unstable gas reading detected, skipping...")
+                return None
+            
+            return {"co2": co2, "tvoc": tvoc}
+        
+    except Exception as e:
+        print("Error reading gas sensor:", e)
+        
+    return None
+
+def main():
+    # Initialize the gas sensor (if needed)
+    initialize_gas_sensor()
+    
+    while True:
+        
+        temp = read_temperature()
+        moisture = read_moisture()
+        gas = read_gas_sensor()
+        
+        print("\n Sensor Readings:")
+        if temp is not None:
+            print("🌡️ Temperature (raw):", temp)
+        if moisture is not None:
+            print("💧 Moisture ADC (raw):", moisture)
+        if gas:
+            print(f"📊 Gas - CO₂: {gas['co2']} ppm, TVOC: {gas['tvoc']} ppb")
+
+        print("")
+
+        time.sleep(1) # Read every second
+    
+if __name__ == "__main__":
+    main()
