@@ -1,8 +1,17 @@
 import time
 import smbus2
+import json
+import socket
+import random
+import paho.mqtt.client as mqtt
 
-# Initialize a single I2C bus (bus number 1 is typical on a Raspberry Pi Zero)
-bus = smbus2.SMBus(1)
+# WiFi Credentials (Handled by Raspberry Pi OS)
+SSID = "ImperialWifi"  # No need to manually connect in script
+PASSWORD = "imperialwifi1!"
+
+# MQTT Broker Configuration
+MQTT_BROKER = "test.mosquitto.org"
+MQTT_TOPIC = "IC.embedded/samsungsmartfridge/compost"
 
 # Temperature Sensor (Si7021)
 SI7021_ADDR = 0x40
@@ -29,6 +38,9 @@ CCS811_MEAS_MODE_REG = 0x01
 CCS811_ALG_RESULT_DATA = 0x02
 CCS811_APP_START = 0xF4
 CCS811_HW_ID = 0x20
+
+# Initialize a single I2C bus (bus number 1 is typical on a Raspberry Pi Zero)
+bus = smbus2.SMBus(1)
 
 def read_temperature():
     try:
@@ -110,6 +122,23 @@ def read_gas_sensor():
         
     return None
 
+# Get Raspberry Pi's local IP address
+def get_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+# MQTT Client Setup
+client = mqtt.Client()
+client.connect(MQTT_BROKER, 1883, 60)
+
+print("Connected to MQTT Broker")
+
 def main():
     initialize_gas_sensor() # Initialize the gas sensor (if needed)
     
@@ -126,10 +155,27 @@ def main():
             print("Moisture ADC (raw):", moisture)
         if gas:
             print(f"Gas - CO₂: {gas['co2']} ppm, TVOC: {gas['tvoc']} ppb")
+            CO2 = gas["co2"]
+            TVOC = gas["tvoc"]
+        else:
+            CO2 = -1.0
+            TVOC = -1.0
+
+        data = {
+            "temperature": round(temp, 2),
+            "moisture": round(moisture, 2),
+            "CO2": round(CO2, 2),
+            "TVOC": round(TVOC, 2),
+            "device_ip": get_ip()
+        }  # Format data as JSON
+        payload = json.dumps(data)
+
+        client.publish(MQTT_TOPIC, payload)
+        print(f"Published: {payload}")
 
         print("")
 
-        time.sleep(1) # Read every second
+        time.sleep(5) # Read every second
     
 if __name__ == "__main__":
     main()
