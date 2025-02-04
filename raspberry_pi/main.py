@@ -31,7 +31,6 @@ CCS811_APP_START = 0xF4
 CCS811_HW_ID = 0x20
 
 def read_temperature():
-    """Read temperature from the Si7021 sensor."""
     try:
         # Create a write transaction that sends the command to measure temperature
         cmd_meas_temp = smbus2.i2c_msg.write(SI7021_ADDR, [SI7021_TEMP_CMD])
@@ -54,7 +53,6 @@ def read_temperature():
         return None
 
 def read_moisture():
-    """Read ADC value from the ADS1115 for the moisture sensor."""
     try:
         # Convert CONFIG to two bytes in big-endian order
         config_bytes = ADS1115_CONFIG.to_bytes(2, byteorder='big')
@@ -76,9 +74,8 @@ def read_moisture():
         return None
 
 def initialize_gas_sensor():
-    """Initializes the CCS811 gas sensor."""
     try:
-        print("🔄 Resetting CCS811 sensor...")
+        print("Resetting CCS811 sensor...")
         
         # Start the application firmware on the CCS811
         bus.write_byte(CCS811_ADDR, CCS811_APP_START)
@@ -86,14 +83,13 @@ def initialize_gas_sensor():
 
         # Set mode to read every second
         bus.write_byte_data(CCS811_ADDR, CCS811_MEAS_MODE_REG, 0x10)
-        print("✅ Gas sensor is ready. Waiting 20 seconds for stabilization...")
+        print("Gas sensor is ready. Waiting 20 seconds for stabilization...")
         time.sleep(20)
         
     except Exception as e:
         print("Error initializing gas sensor:", e)
 
 def read_gas_sensor():
-    """ Reads CO₂ and TVOC values from the CCS811 sensor, filtering out invalid readings. """
     try:
         status = bus.read_byte_data(CCS811_ADDR, CCS811_STATUS_REG)
         
@@ -104,7 +100,7 @@ def read_gas_sensor():
 
             # Ignore unrealistic readings
             if co2 > 5000 or tvoc > 2000:
-                print("⚠️ Unstable gas reading detected, skipping...")
+                print("Unstable gas reading detected, skipping...")
                 return None
             
             return {"co2": co2, "tvoc": tvoc}
@@ -115,8 +111,7 @@ def read_gas_sensor():
     return None
 
 def main():
-    # Initialize the gas sensor (if needed)
-    initialize_gas_sensor()
+    initialize_gas_sensor() # Initialize the gas sensor (if needed)
     
     while True:
         
@@ -126,11 +121,11 @@ def main():
         
         print("\n Sensor Readings:")
         if temp is not None:
-            print("🌡️ Temperature (raw):", temp)
+            print("Temperature (raw):", temp)
         if moisture is not None:
-            print("💧 Moisture ADC (raw):", moisture)
+            print("Moisture ADC (raw):", moisture)
         if gas:
-            print(f"📊 Gas - CO₂: {gas['co2']} ppm, TVOC: {gas['tvoc']} ppb")
+            print(f"Gas - CO₂: {gas['co2']} ppm, TVOC: {gas['tvoc']} ppb")
 
         print("")
 
