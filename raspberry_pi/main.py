@@ -44,22 +44,24 @@ bus = smbus2.SMBus(1)
 
 def read_temperature():
     try:
-        # Create a write transaction that sends the command to measure temperature
+        # Set up a command for measuring temperature
         cmd_meas_temp = smbus2.i2c_msg.write(SI7021_ADDR, [SI7021_TEMP_CMD])
         
-        # Create a read transaction that reads 2 bytes of data
+        # Set up a read transaction that reads two bytes of data
         read_result = smbus2.i2c_msg.read(SI7021_ADDR, 2)
-    
-        # Execute the two transactions: write and then read (with a delay in between)
+
         bus.i2c_rdwr(cmd_meas_temp)
-        time.sleep(0.1)
+        time.sleep(0.1)  # Allow sensor time to measure
         bus.i2c_rdwr(read_result)
-    
-        # Combine the 2 bytes and convert to an int
-        temperature = int.from_bytes(read_result.buf[0] + read_result.buf[1], 'big')
-        
-        return temperature
-    
+
+        # Combine bytes
+        raw_temp = (read_result.buf[0][0] << 8) | read_result.buf[1][0]
+
+        # Convert to Celsius
+        temp_celcius = (175.72 * raw_temp / 65536) - 46.85
+
+        return round(temp_celcius, 2)
+
     except Exception as e:
         print("Error reading temperature sensor:", e)
         return None
@@ -79,7 +81,13 @@ def read_moisture():
         data = bus.read_i2c_block_data(ADS1115_ADDR, ADS1115_CONVERSION_REG, 2)
         adc_value = int.from_bytes(data, byteorder='big', signed=True)
         
-        return adc_value
+        min_moisture = 20700
+        max_moisture = 1700
+        
+        moisture_percent = ((adc_value - min_moisture) / (max_moisture - min_moisture)) * 100
+        moisture_percent = max(0, min(100, moisture_percent))  # Clamp to 0-100%
+        
+        return moisture_percent
     
     except Exception as e:
         print("Error reading moisture sensor:", e)
