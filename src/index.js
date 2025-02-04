@@ -3,6 +3,14 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { Buffer } from "buffer";
+import process from "process";
+import { Transform } from "stream-browserify";
+
+window.Buffer = Buffer;
+window.process = process;
+window.Transform = Transform;
+
 
 ReactDOM.render(
   <React.StrictMode>

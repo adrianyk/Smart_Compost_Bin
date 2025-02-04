@@ -1,23 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import Dashboard from "./Dashboard";
+import TemperatureChart from "./TemperatureChart";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{ height: "100vh", padding: "20px", textAlign: "center" }}>
+      {/* Header */}
+      <h1 style={{ marginBottom: "20px" }}>Compost Bin Live Dashboard</h1>
+
+      {/* Main Layout */}
+      <div style={{ display: "flex", height: "90vh" }}>
+        {/* Left Section: Dashboard */}
+        <div style={{
+          width: "30%",
+          minWidth: "300px",
+          padding: "20px",
+          borderRight: "2px solid #ddd",
+          textAlign: "left",
+        }}>
+          <Dashboard />
+        </div>
+
+        {/* Right Section: Chart */}
+        <div style={{ flex: 1, padding: "20px" }}>
+          <TemperatureChart />
+        </div>
+      </div>
     </div>
   );
 }
