@@ -2,7 +2,7 @@ import time
 import smbus2
 import json
 import socket
-import random
+import uuid
 import paho.mqtt.client as mqtt
 
 # WiFi Credentials (Handled by Raspberry Pi OS)
@@ -11,7 +11,20 @@ PASSWORD = "imperialwifi1!"
 
 # MQTT Broker Configuration
 MQTT_BROKER = "test.mosquitto.org"
-MQTT_TOPIC = "IC.embedded/samsungsmartfridge/compost"
+BASE_TOPIC = "IC.embedded/samsungsmartfridge/compost"
+
+# Get Raspberry Pi's Unique Identifier (MAC Address)
+def get_device_id():
+    return hex(uuid.getnode())[-6:]  # Extract last 6 hex characters of MAC
+
+DEVICE_ID = get_device_id()
+MQTT_TOPIC = f"{BASE_TOPIC}/{DEVICE_ID}"
+
+# MQTT Client Setup
+client = mqtt.Client()
+client.connect(MQTT_BROKER, 1883, 60)
+
+print("Connected to MQTT Broker")
 
 # Temperature Sensor (Si7021)
 SI7021_ADDR = 0x40
@@ -141,12 +154,6 @@ def get_ip():
     except Exception:
         return "0.0.0.0"
 
-# MQTT Client Setup
-client = mqtt.Client()
-client.connect(MQTT_BROKER, 1883, 60)
-
-print("Connected to MQTT Broker")
-
 def main():
     initialize_gas_sensor() # Initialize the gas sensor (if needed)
     
@@ -174,7 +181,8 @@ def main():
             "moisture": round(moisture, 2),
             "CO2": round(CO2, 2),
             "TVOC": round(TVOC, 2),
-            "device_ip": get_ip()
+            "device_ip": get_ip(),
+            "device_id": DEVICE_ID
         }  # Format data as JSON
         payload = json.dumps(data)
 
