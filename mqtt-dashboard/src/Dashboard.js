@@ -3,6 +3,7 @@ import mqtt from "mqtt";
 import Recommendations from "./Recommendations";
 import { FaTemperatureHigh, FaSmog, FaCloud } from "react-icons/fa";
 import { MdWaterDrop } from "react-icons/md";
+import FAQ from "./FAQ";
 
 const MQTT_BROKER = "wss://test.mosquitto.org:8081";  // WebSocket version of the MQTT broker
 const MQTT_TOPIC = "IC.embedded/samsungsmartfridge/compost";
@@ -104,6 +105,9 @@ const Dashboard = () => {
       ) : (
         <h2>Waiting for data...</h2>
       )}
+
+      {/* Add FAQ Section */}
+      <FAQ />
     </div>
   );
 };
