@@ -1,6 +1,7 @@
 import React from "react";
 import Dashboard from "./Dashboard";
 import TemperatureChart from "./TemperatureChart";
+import FAQ from "./FAQ";
 
 function App() {
   return (
@@ -9,7 +10,7 @@ function App() {
       <h1 style={{ marginBottom: "20px" }}>Compost Bin Live Dashboard</h1>
 
       {/* Main Layout */}
-      <div style={{ display: "flex", height: "90vh" }}>
+      <div style={{ display: "flex", height: "68vh" }}>
         {/* Left Section: Dashboard */}
         <div style={{
           width: "30%",
@@ -26,6 +27,11 @@ function App() {
           <TemperatureChart />
         </div>
       </div>
+
+      <div>
+        <FAQ />
+      </div>
+
     </div>
   );
 }

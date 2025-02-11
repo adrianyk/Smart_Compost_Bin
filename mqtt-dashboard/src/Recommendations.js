@@ -48,7 +48,7 @@ const Recommendations = ({ temperature, moisture, tvoc }) => {
   const notifications = getNotifications();
 
   return (
-    <div style={{ marginTop: "20px", padding: "15px", borderRadius: "5px" }}>
+    <div style={{ marginTop: "20px", borderRadius: "5px" }}>
       <h3>Alerts & Recommendations</h3>
       {notifications.length > 0 ? (
         notifications.map((notif, index) => (

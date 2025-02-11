@@ -25,22 +25,16 @@ const TemperatureChart = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/data");
+        const response = await fetch("http://localhost:5000/history");
         const jsonData = await response.json();
-
-        if (jsonData.length > 1) {
-          const parsedData = jsonData.slice(1); // Remove header row
-
-          const loadedTimestamps = parsedData.map(row => row[0]);
-          const loadedData = {
-            Temperature: parsedData.map(row => parseFloat(row[1])),
-            Moisture: parsedData.map(row => parseFloat(row[2])),
-            CO2: parsedData.map(row => parseFloat(row[3])),
-            TVOC: parsedData.map(row => parseFloat(row[4])),
-          };
-
-          setTimestamps(loadedTimestamps);
-          setDataPoints(loadedData);
+        if (jsonData.length > 0) {
+          setTimestamps(jsonData.map(row => row.timestamp));
+          setDataPoints({
+            Temperature: jsonData.map(row => row.temperature),
+            Moisture: jsonData.map(row => row.moisture),
+            CO2: jsonData.map(row => row.CO2),
+            TVOC: jsonData.map(row => row.TVOC),
+          });
         }
       } catch (error) {
         console.error("Error fetching CSV data:", error);
