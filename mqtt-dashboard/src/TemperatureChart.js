@@ -15,19 +15,22 @@ import { Line } from "react-chartjs-2";
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
+// Available parameters for tab selection
 const PARAMETERS = ["Temperature", "Moisture", "CO2", "TVOC"];
 
-const TemperatureChart = () => {
+const TemperatureChart = ({ device }) => {
   const [timestamps, setTimestamps] = useState([]);
   const [dataPoints, setDataPoints] = useState({});
   const [activeParameter, setActiveParameter] = useState("Temperature");
 
   useEffect(() => {
+    if (!device) return;
+
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/history");
+        const response = await fetch(`http://localhost:5000/history/${device}`);
         const jsonData = await response.json();
-        if (jsonData.length > 0) {
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
           setTimestamps(jsonData.map(row => row.timestamp));
           setDataPoints({
             Temperature: jsonData.map(row => row.temperature),
@@ -37,15 +40,14 @@ const TemperatureChart = () => {
           });
         }
       } catch (error) {
-        console.error("Error fetching CSV data:", error);
+        console.error("Error fetching historical data:", error);
       }
     };
 
-    // Fetch data every 5 seconds
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, []);
+  }, [device]);
 
   const chartData = {
     labels: timestamps,
