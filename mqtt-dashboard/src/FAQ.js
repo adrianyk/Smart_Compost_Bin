@@ -1,68 +1,109 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 const FAQ = () => {
   const faqs = [
     {
-      question: "🔥 My compost bin temperature is too high! What should I do?",
+      question: "My compost bin temperature is too high! What should I do?",
       answer: "Add more dry browns (leaves, cardboard) to balance nitrogen levels and turn the compost to release excess heat.",
     },
     {
-      question: "❄️ My compost is too cold. How do I warm it up?",
+      question: "My compost is too cold. How do I warm it up?",
       answer: "Add more greens (food scraps, grass clippings) and turn the compost to activate microbial activity.",
     },
     {
-      question: "💦 My compost is too wet! What can I do?",
+      question: "My compost is too wet! What can I do?",
       answer: "Mix in dry browns like shredded paper or sawdust to absorb excess moisture.",
     },
     {
-      question: "🌱 My compost is too dry! How do I fix it?",
+      question: "My compost is too dry! How do I fix it?",
       answer: "Add a small amount of water and mix in wet greens to increase moisture levels.",
     },
     {
-      question: "💨 My CO₂ levels are too high! What does this mean?",
+      question: "My CO₂ levels are too high! What does this mean?",
       answer: "This indicates anaerobic conditions. Turn the compost to improve airflow and balance the moisture levels.",
     },
     {
-      question: "🤢 My compost smells bad! What should I do?",
+      question: "My compost smells bad! What should I do?",
       answer: "Bad odors mean too much moisture or lack of aeration. Turn the compost and add dry browns to neutralize odors.",
     },
   ];
 
-  const [openIndex, setOpenIndex] = useState(null);
+  const [openIndexes, setOpenIndexes] = useState([]);
 
   const toggleFAQ = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
+    setOpenIndexes((prevIndexes) =>
+      prevIndexes.includes(index)
+        ? prevIndexes.filter((i) => i !== index)
+        : [...prevIndexes, index]
+    );
   };
 
   return (
-    <div style={{ marginTop: "30px", padding: "20px", backgroundColor: "#f9f9f9", borderRadius: "8px" }}>
-      <h2>❓ Frequently Asked Questions</h2>
+    <div style={{ marginTop: "30px", padding: "20px", margin: "auto" }}>
+      <h2 style={{ fontSize: "1.8rem", fontWeight: "bold", marginBottom: "20px" }}>Frequently Asked Questions</h2>
       {faqs.map((faq, index) => (
-        <div key={index} style={{ marginBottom: "10px" }}>
+        <div key={index} style={{ marginBottom: "0px", borderBottom: "2px solid #add8e6" }}>
           <button
             onClick={() => toggleFAQ(index)}
             style={{
               width: "100%",
               textAlign: "left",
-              padding: "10px",
+              padding: "15px",
               fontSize: "1.1rem",
               fontWeight: "bold",
-              backgroundColor: openIndex === index ? "#ddd" : "#eee",
+              backgroundColor: "transparent",
               border: "none",
               cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
             {faq.question}
+            {openIndexes.includes(index) ? <FaChevronUp /> : <FaChevronDown />}
           </button>
-          {openIndex === index && (
-            <div style={{ padding: "10px", backgroundColor: "#fff", borderRadius: "4px", border: "1px solid #ddd" }}>
-              {faq.answer}
-            </div>
-          )}
+          <ExpandableAnswer isOpen={openIndexes.includes(index)}>{faq.answer}</ExpandableAnswer>
         </div>
       ))}
     </div>
   );
 };
+
+const ExpandableAnswer = ({ isOpen, children }) => {
+  const contentRef = useRef(null);
+  const [height, setHeight] = useState("0px");
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setHeight(`${contentRef.current.scrollHeight}px`);
+      setOpacity(1);
+    } else {
+      setHeight("0px");
+      setOpacity(0);
+    }
+  }, [isOpen]);
+
+  return (
+    <div
+      ref={contentRef}
+      style={{
+        height,
+        opacity,
+        overflow: "hidden",
+        transition: "height 0.6s ease-in-out, opacity 0.4s ease-in-out",
+        textAlign: "left",
+        padding: isOpen ? "5px 10px" : "0px 10px",
+        fontSize: "1rem",
+        color: "#333",
+        marginBottom: isOpen ? "3px" : "0px",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
 
 export default FAQ;

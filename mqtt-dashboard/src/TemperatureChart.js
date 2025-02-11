@@ -15,43 +15,39 @@ import { Line } from "react-chartjs-2";
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
+// Available parameters for tab selection
 const PARAMETERS = ["Temperature", "Moisture", "CO2", "TVOC"];
 
-const TemperatureChart = () => {
+const TemperatureChart = ({ device }) => {
   const [timestamps, setTimestamps] = useState([]);
   const [dataPoints, setDataPoints] = useState({});
   const [activeParameter, setActiveParameter] = useState("Temperature");
 
   useEffect(() => {
+    if (!device) return;
+
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/data");
+        const response = await fetch(`http://localhost:5000/history/${device}`);
         const jsonData = await response.json();
-
-        if (jsonData.length > 1) {
-          const parsedData = jsonData.slice(1); // Remove header row
-
-          const loadedTimestamps = parsedData.map(row => row[0]);
-          const loadedData = {
-            Temperature: parsedData.map(row => parseFloat(row[1])),
-            Moisture: parsedData.map(row => parseFloat(row[2])),
-            CO2: parsedData.map(row => parseFloat(row[3])),
-            TVOC: parsedData.map(row => parseFloat(row[4])),
-          };
-
-          setTimestamps(loadedTimestamps);
-          setDataPoints(loadedData);
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
+          setTimestamps(jsonData.map(row => row.timestamp));
+          setDataPoints({
+            Temperature: jsonData.map(row => row.temperature),
+            Moisture: jsonData.map(row => row.moisture),
+            CO2: jsonData.map(row => row.CO2),
+            TVOC: jsonData.map(row => row.TVOC),
+          });
         }
       } catch (error) {
-        console.error("Error fetching CSV data:", error);
+        console.error("Error fetching historical data:", error);
       }
     };
 
-    // Fetch data every 5 seconds
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, []);
+  }, [device]);
 
   const chartData = {
     labels: timestamps,

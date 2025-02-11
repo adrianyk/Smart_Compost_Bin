@@ -9,103 +9,85 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests from React
 
-# Directory to store CSV files for each device
-CSV_DIRECTORY = "sensor_data"
-
-# MQTT Broker Configuration
+DEVICES_DIR = "mqtt-dashboard/devices"  # Directory to store multiple device data
 MQTT_BROKER = "test.mosquitto.org"
-BASE_TOPIC = "IC.embedded/samsungsmartfridge/compost"
+MQTT_TOPIC = "IC.embedded/samsungsmartfridge/compost"
 
-# Ensure the sensor data directory exists
-def initialize_csv_directory():
-    try:
-        if not os.path.exists(CSV_DIRECTORY):
-            os.makedirs(CSV_DIRECTORY)
-    except Exception as e:
-        print(f"Error initializing CSV directory: {e}")
+# Ensure devices directory exists
+if not os.path.exists(DEVICES_DIR):
+    os.makedirs(DEVICES_DIR)
 
-# Ensure CSV file exists and is correctly formatted for a given device (MAC address)
-def initialize_csv(mac_address):
-    try:
-        csv_file = os.path.join(CSV_DIRECTORY, f"{mac_address}_sensor_data.csv")
-        if os.path.exists(csv_file):
-            with open(csv_file, "r+", newline="") as f:
-                reader = csv.reader(f)
-                headers = next(reader, None)
+# Get CSV file path for a given device
+def get_csv_filename(device_id):
+    return os.path.join(DEVICES_DIR, f"{device_id}.csv")
 
-                # If file is empty or headers are incorrect, reset file
-                if headers != ["timestamp", "temperature", "moisture", "CO2", "TVOC"]:
-                    print("CSV file format incorrect or empty. Resetting file...")
-                    f.seek(0)
-                    f.truncate()
-                    writer = csv.writer(f)
-                    writer.writerow(["timestamp", "temperature", "moisture", "CO2", "TVOC"])
-        else:
-            with open(csv_file, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(["timestamp", "temperature", "moisture", "CO2", "TVOC"])
-    except Exception as e:
-        print(f"Error initializing CSV file for {mac_address}: {e}")
-
-# Store new data from POST request (using MAC address to identify the file)
-@app.route("/store", methods=["POST"])
-def store_data():
-    try:
-        data = request.json  # Expect JSON format
-        mac_address = data.get("device_id")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if not mac_address:
-            return jsonify({"error": "MAC address required"}), 400
-        
-        # Initialize CSV file for this device
-        initialize_csv(mac_address)
-
-        csv_file = os.path.join(CSV_DIRECTORY, f"{mac_address}_sensor_data.csv")
-        with open(csv_file, "a", newline="") as f:
+# Ensure CSV file exists with proper headers
+def initialize_csv(device_id):
+    csv_file = get_csv_filename(device_id)
+    if not os.path.exists(csv_file) or os.stat(csv_file).st_size == 0:
+        with open(csv_file, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                timestamp,
-                data.get("temperature"),
-                data.get("moisture"),
-                data.get("CO2"),
-                data.get("TVOC"),
-            ])
-        return jsonify({"message": "Data saved"}), 200
-    except Exception as e:
-        return jsonify({"error": f"CSV Write Error: {e}"}), 500
+            writer.writerow(["timestamp", "temperature", "moisture", "CO2", "TVOC"])
 
-# API to get the last 60 readings for a specific device (using MAC address)
-@app.route("/data", methods=["GET"])
-def get_data():
-    try:
-        mac_address = request.args.get("device_id")
-        csv_file = os.path.join(CSV_DIRECTORY, f"{mac_address}_sensor_data.csv")
-        if not os.path.exists(csv_file):
-            return jsonify({"error": f"No data found for MAC address {mac_address}"}), 404
-        
-        with open(csv_file, "r") as f:
-            reader = list(csv.reader(f))
-            data = reader[-60:] if len(reader) > 1 else []
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": f"CSV Read Error: {e}"}), 500
+# API to get the list of devices (CSV files)
+@app.route("/devices", methods=["GET"])
+def get_devices():
+    device_files = os.listdir(DEVICES_DIR)
+    devices = [file.replace(".csv", "") for file in device_files if file.endswith(".csv")]
+    return jsonify(devices), 200
 
-# MQTT Callback: When message is received, store in CSV
+# API to get the latest reading for a device
+@app.route("/latest/<device_id>", methods=["GET"])
+def get_latest_data(device_id):
+    csv_file = get_csv_filename(device_id)
+    if not os.path.exists(csv_file):
+        return jsonify({"error": "Device data not found"}), 404
+
+    with open(csv_file, "r") as f:
+        reader = list(csv.reader(f))
+        if len(reader) > 1:
+            last_entry = reader[-1]
+            return jsonify({
+                "timestamp": last_entry[0],
+                "temperature": float(last_entry[1]),
+                "moisture": float(last_entry[2]),
+                "CO2": float(last_entry[3]),
+                "TVOC": float(last_entry[4])
+            }), 200
+    return jsonify({"error": "No data available"}), 404
+
+# API to get historical data for a device
+@app.route("/history/<device_id>", methods=["GET"])
+def get_history(device_id):
+    csv_file = get_csv_filename(device_id)
+    if not os.path.exists(csv_file):
+        return jsonify({"error": "Device data not found"}), 404
+
+    with open(csv_file, "r") as f:
+        reader = list(csv.reader(f))
+        if len(reader) > 1:
+            data = [
+                {"timestamp": row[0], "temperature": float(row[1]), "moisture": float(row[2]),
+                 "CO2": float(row[3]), "TVOC": float(row[4])}
+                for row in reader[1:]  # Skip header row
+            ]
+            return jsonify(data[-60:]), 200  # Return last 60 entries
+    return jsonify([]), 200
+
+# MQTT Callback: Store incoming messages per device
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
-        mac_address = payload.get("device_id")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if not mac_address:
-            print("Error: Missing MAC address in payload.")
+        device_id = payload.get("device_id")
+
+        if not device_id:
+            print("Received data missing device_id")
             return
 
-        # Initialize CSV file for this device
-        initialize_csv(mac_address)
-        
-        csv_file = os.path.join(CSV_DIRECTORY, f"{mac_address}_sensor_data.csv")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        initialize_csv(device_id)  # Ensure CSV file exists
+
+        csv_file = get_csv_filename(device_id)
         with open(csv_file, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -115,7 +97,8 @@ def on_message(client, userdata, msg):
                 payload.get("CO2"),
                 payload.get("TVOC"),
             ])
-        print(f"MQTT Data Saved for {mac_address}: {payload}")
+        print(f"Data saved for {device_id}: {payload}")
+
     except json.JSONDecodeError:
         print("Error: Received invalid JSON payload.")
     except Exception as e:
@@ -127,14 +110,11 @@ def setup_mqtt():
         client = mqtt.Client()
         client.on_message = on_message
         client.connect(MQTT_BROKER, 1883, 60)
-        
-        # Subscribe to the BASE_TOPIC (which will handle dynamic device subscriptions)
-        client.subscribe(f"{BASE_TOPIC}/#")
+        client.subscribe(f"{MQTT_TOPIC}/+")
         client.loop_start()
     except Exception as e:
         print(f"MQTT Setup Error: {e}")
 
 if __name__ == "__main__":
-    initialize_csv_directory()  # Ensure the CSV directory exists
-    setup_mqtt()  # Start MQTT listener
+    setup_mqtt()
     app.run(host="0.0.0.0", port=5000)
