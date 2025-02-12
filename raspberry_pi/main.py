@@ -3,6 +3,7 @@ import smbus2
 import json
 import socket
 import uuid
+import math
 import paho.mqtt.client as mqtt
 
 # Constants for Temperature Sensor (Si7021)
@@ -121,26 +122,78 @@ def initialize_gas_sensor():
     except Exception as e:
         print("Error initializing gas sensor:", e)
 
-def read_gas_sensor():
-    try:
-        status = BUS.read_byte_data(CCS811_ADDR, CCS811_STATUS_REG)
-        
-        if status & 0x08:   # Data ready
-            data = BUS.read_i2c_block_data(CCS811_ADDR, CCS811_ALG_RESULT_DATA, 8)
-            co2 = (data[0] << 8) | (data[1] & 0xFF)
-            tvoc = (data[2] << 8) | (data[3] & 0xFF)
-
-            # Ignore unrealistic readings
-            if co2 > 5000 or tvoc > 2000:
-                print("Unstable gas reading detected, skipping...")
-                return None
+def read_gas_sensor(num_samples=5):
+    co2_readings = []
+    tvoc_readings = []
+    
+    for i in range(num_samples):
+        print(i)
+        try:
+            status = BUS.read_byte_data(CCS811_ADDR, CCS811_STATUS_REG)
             
-            return {"co2": co2, "tvoc": tvoc}
+            if status & 0x08:   # Data ready
+                data = BUS.read_i2c_block_data(CCS811_ADDR, CCS811_ALG_RESULT_DATA, 8)
+                co2 = (data[0] << 8) | (data[1] & 0xFF)
+                tvoc = (data[2] << 8) | (data[3] & 0xFF)
+                print(f"CO2: {co2}, TVOC: {tvoc}")
+
+                if 0 <= co2 <= 10000 and 0 <= tvoc <= 3000:
+                    co2_readings.append(co2)
+                    tvoc_readings.append(tvoc)
+                    print(f"Valid readings collected: co2 {co2_readings}, tvoc {tvoc_readings}")
+                else:
+                    # Ignore unrealistic readings
+                    print("Unstable gas reading detected, skipping...")
+            
+        except Exception as e:
+            print("Error reading gas sensor:", e)
+
+        time.sleep(0.5)
         
-    except Exception as e:
-        print("Error reading gas sensor:", e)
-        
+    # Compute average if we have valid readings, otherwise return None
+    if co2_readings and tvoc_readings:
+        print(f"len(co2_readings): {len(co2_readings)}, len(tvoc_readings): {len(tvoc_readings)}")
+        avg_co2 = sum(co2_readings) / len(co2_readings)
+        avg_tvoc = sum(tvoc_readings) / len(tvoc_readings)
+        return {"co2": avg_co2, "tvoc": avg_tvoc}
+    
     return None
+
+def temperature_score(temp):
+    optimal_temp = 55
+    acceptable_range = 15
+    
+    # Linear peak function: calcs temp score where ideal temp (55°C) gets highest score
+    score = 1 - abs((temp - optimal_temp) / acceptable_range)
+    return max(0, score)
+
+def moisture_score(moisture):
+    optimal_moisture = 55
+    acceptable_range = 15
+    
+    # Linear peak function: calcs moisture score where ideal range (50-60%) gets highest score
+    score = 1 - abs((moisture - optimal_moisture) / acceptable_range)
+    return max(0, score)
+
+def aeration_score(co2, tvoc):
+    # Bell-shaped curve: calcs aeration score where ideal range CO2 & TVOC gets highest score
+    optimal_co2 = 1200              # Around 1000-1500 ppm is ideal
+    acceptable_co2_range = 1000     # Spread of ideal range (500-2500)
+    co2_score = math.exp(-((co2 - optimal_co2) / acceptable_co2_range) ** 2)
+    
+    optimal_tvoc = 300              # Around 200-400 ppb is ideal
+    acceptable_tvoc_range = 300     # Spread of ideal range (0-600)
+    tvoc_score = math.exp(-((tvoc - optimal_tvoc) / acceptable_tvoc_range) ** 2)
+    
+    return (co2_score + tvoc_score) / 2
+
+def chi_score(temp, moisture, co2, tvoc):
+    # Calcs CHI score as weighted sum
+    temp_score = temperature_score(temp)
+    moist_score = moisture_score(moisture)
+    gas_score = aeration_score(co2, tvoc)
+    
+    return (0.4 * temp_score) + (0.4 * moist_score) + (0.2 * gas_score)
 
 def main():
     print(f"Device ID: {DEVICE_ID}")
@@ -151,27 +204,40 @@ def main():
     initialize_gas_sensor() # Initialize the gas sensor (if needed)
     
     while True:
+        start_time = time.time()
+        
         temp = read_temperature()
         moisture = read_moisture()
-        gas = read_gas_sensor()
+        gas = read_gas_sensor(num_samples=5)
         
-        CO2, TVOC = (-1.0, -1.0) if gas is None else (gas["co2"], gas["tvoc"])
+        co2, tvoc = (-1.0, -1.0) if gas is None else (gas["co2"], gas["tvoc"])
 
+        chi = chi_score(temp, moisture, co2, tvoc)
+        if co2 == -1:
+            aeration = -1
+        else:
+            aeration = aeration_score(co2, tvoc)
+        
         # Format data as JSON
         data = {
             "device_id": DEVICE_ID,
             "device_ip": get_ip(),
             "temperature": round(temp, 2) if temp is not None else None,
             "moisture": round(moisture, 2) if moisture is not None else None,
-            "CO2": round(CO2, 2),
-            "TVOC": round(TVOC, 2)
+            "CO2": round(co2, 2),
+            "TVOC": round(tvoc, 2),
+            "aeration_score": round(aeration, 2),
+            "chi_score": round(chi, 2)
         }
         
         payload = json.dumps(data)
         client.publish(MQTT_TOPIC, payload)
         print(f"Published to {MQTT_TOPIC}: {payload}\n")
+        
+        end_time = time.time()
+        elapsed_time = end_time - start_time
 
-        time.sleep(5) # Read every second
+        time.sleep(5 - elapsed_time) # Read every second
     
 if __name__ == "__main__":
     main()

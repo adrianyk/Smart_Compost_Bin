@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Recommendations from "./Recommendations";
-import { FaTemperatureHigh, FaSmog, FaCloud } from "react-icons/fa";
+import { FaTemperatureHigh, FaSmog, FaCloud, FaHeartbeat, FaWind } from "react-icons/fa";
 import { MdWaterDrop } from "react-icons/md";
 
 const Dashboard = ({ device }) => {
@@ -51,7 +51,13 @@ const Dashboard = ({ device }) => {
           <h2 style={{ color: "purple" }}>
             <FaCloud /> TVOC: {data.TVOC} ppm
           </h2>
-          <Recommendations temperature={data.temperature} moisture={data.moisture} tvoc={data.TVOC} />
+          <h2 style={{ color: "purple" }}>
+            <FaCloud /> CHI Score: {data.chi_score}
+          </h2>
+          <h2 style={{ color: "purple" }}>
+            <FaCloud /> Aeration Score: {data.aeration_score}
+          </h2>
+          <Recommendations chi={data.chi_score} aeration={data.aeration_score} />
         </div>
       ) : (
         <h2>Waiting for data...</h2>
