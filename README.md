@@ -11,14 +11,14 @@ The **Smart Compost Bin System** consists of:
 - **React frontend** to visualize data and provide real-time composting recommendations  
 
 **Data Flow:**  
-**Raspberry Pi** Sensor Data →  MQTT Broker → Flask Backend → React UI
+Sensor Data →  MQTT Broker → Flask Backend → React UI
 
 ---
 
 ## 📝 Contributors
 
 | Name            | Air Quality Sensor | Temperature Sensor | Moisture Sensor | Flask Backend & API | MQTT Integration | React Frontend | Documentation |
-|----------------|------------------|----------------------------|-------------------|----------------|----------------|---------------|---------------|
-| **[Adrian]**  |                 |                              | ✅                    |               | ✅              | ✅            | ✅
-| **[Keegan]** |                  | ✅                          |                     | ✅              |                | ✅            | ✅
-| **[Jungwon]** | ✅                 |                              | ✅                   |               |                | ✅            | ✅
+|----------------|------------------|----------------------|-------------------|----------------|----------------|---------------|---------------|
+| **[Adrian]**   |                  |                        | ✅                    |               | ✅              | ✅            | ✅
+| **[Keegan]**   |                  | ✅                      |                     | ✅              |                | ✅            | ✅
+| **[Jungwon]**  | ✅               |                         | ✅                   |               |                | ✅            | ✅
