@@ -22,3 +22,8 @@ Sensor Data →  MQTT Broker → Flask Backend → React UI
 | **[Adrian]**   |                  |                   | ✅                    |               | ✅              | ✅            | ✅
 | **[Keegan]**   |                  | ✅                |                     | ✅              |                | ✅            | ✅
 | **[Jungwon]**  | ✅               |                   | ✅                   |               |                | ✅            | ✅
+
+---
+## Marketing Website
+
+https://jungwon0518.wixsite.com/smart-compost-bin
