@@ -51,13 +51,13 @@ const Dashboard = ({ device }) => {
           <h2 style={{ color: "purple" }}>
             <FaCloud /> TVOC: {data.TVOC} ppm
           </h2>
-          <h2 style={{ color: "purple" }}>
-            <FaCloud /> CHI Score: {data.chi_score}
+          <h2 style={{ color: "darkred" }}>
+            <FaHeartbeat  /> CHI Score: {data.chi_score}
           </h2>
-          <h2 style={{ color: "purple" }}>
-            <FaCloud /> Aeration Score: {data.aeration_score}
+          <h2 style={{ color: "teal" }}>
+            <FaWind /> Aeration Score: {data.aeration_score}
           </h2>
-          <Recommendations chi={data.chi_score} aeration={data.aeration_score} />
+          <Recommendations temperature={data.temperature} moisture={data.moisture} co2={data.CO2} tvoc={data.TVOC} chi={data.chi_score} aeration={data.aeration_score} />
         </div>
       ) : (
         <h2>Waiting for data...</h2>

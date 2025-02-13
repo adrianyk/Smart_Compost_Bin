@@ -9,16 +9,15 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
 import { Line } from "react-chartjs-2";
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 // Available parameters for tab selection
-const PARAMETERS = ["Temperature", "Moisture", "CO2", "TVOC"];
+const PARAMETERS = ["Temperature", "Moisture", "CO2", "TVOC", "CHI", "Aeration"];
 
-const TemperatureChart = ({ device }) => {
+const DataChart = ({ device }) => {
   const [timestamps, setTimestamps] = useState([]);
   const [dataPoints, setDataPoints] = useState({});
   const [activeParameter, setActiveParameter] = useState("Temperature");
@@ -37,6 +36,8 @@ const TemperatureChart = ({ device }) => {
             Moisture: jsonData.map(row => row.moisture),
             CO2: jsonData.map(row => row.CO2),
             TVOC: jsonData.map(row => row.TVOC),
+            CHI: jsonData.map(row => row.chi_score),
+            Aeration: jsonData.map(row => row.aeration_score),
           });
         }
       } catch (error) {
@@ -49,27 +50,30 @@ const TemperatureChart = ({ device }) => {
     return () => clearInterval(interval);
   }, [device]);
 
+  // Assign colors based on the parameter (Matching notification colors)
+  const parameterColors = {
+    Temperature: "orange",
+    Moisture: "blue",
+    CO2: "green",
+    TVOC: "purple",
+    CHI: "darkred",
+    AERATION: "teal",
+  };
+
   const chartData = {
     labels: timestamps,
     datasets: [
       {
         label: `${activeParameter} Over Time`,
         data: dataPoints[activeParameter] || [],
-        borderColor:
-          activeParameter === "Temperature"
-            ? "orange"
-            : activeParameter === "Moisture"
-            ? "blue"
-            : activeParameter === "CO2"
-            ? "green"
-            : "purple",
+        borderColor: parameterColors[activeParameter] || "black",
         fill: false,
       },
     ],
   };
 
   return (
-    <div style={{ width: "80%", margin: "auto", textAlign: "center" }}>
+    <div style={{ width: "95%", margin: "auto", textAlign: "center" }}>
       <h2>Historical Data Over Last Hour</h2>
       
       {/* Tab Navigation */}
@@ -98,4 +102,4 @@ const TemperatureChart = ({ device }) => {
   );
 };
 
-export default TemperatureChart;
+export default DataChart;

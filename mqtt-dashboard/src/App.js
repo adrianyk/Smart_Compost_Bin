@@ -137,7 +137,7 @@ function App() {
         </div>
       )}
 
-      <div style={{ display: "flex", height: "75vh" }}>
+      <div style={{ display: "flex", height: "100vh" }}>
         <div style={{ width: "30%", minWidth: "300px", padding: "20px", borderRight: "2px solid #ddd" }}>
           <Dashboard device={selectedDevice} />
         </div>
@@ -146,7 +146,10 @@ function App() {
         </div>
       </div>
 
-      <FAQ />
+      <div style={{ marginTop: "1px", padding: "1px" }}>
+        <FAQ />
+      </div>
+
     </div>
   );
 }

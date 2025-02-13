@@ -4,11 +4,11 @@ import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 const FAQ = () => {
   const faqs = [
     {
-      question: "My compost bin temperature is too high! What should I do?",
+      question: "My compost is too hot! How do I cool it down?",
       answer: "Add more dry browns (leaves, cardboard) to balance nitrogen levels and turn the compost to release excess heat.",
     },
     {
-      question: "My compost is too cold. How do I warm it up?",
+      question: "My compost is too cold! How do I warm it up?",
       answer: "Add more greens (food scraps, grass clippings) and turn the compost to activate microbial activity.",
     },
     {
@@ -24,8 +24,32 @@ const FAQ = () => {
       answer: "This indicates anaerobic conditions. Turn the compost to improve airflow and balance the moisture levels.",
     },
     {
+      question: "My CO₂ levels are too low! What should I do?",
+      answer: "Add more moisture, ensure there's enough organic matter, and turn the compost.",
+    },
+    {
       question: "My compost smells bad! What should I do?",
       answer: "Bad odors mean too much moisture or lack of aeration. Turn the compost and add dry browns to neutralize odors.",
+    },
+    {
+      question: "What does CHI score mean?",
+      answer: "Compost Health Index (CHI) combines key composting parameters into a single score (0-1) to indicate overall composting efficiency."
+    },
+    {
+      question: "What does Aeration score mean?",
+      answer: "Aeration meaasures the oxygen availability in the compost."
+    },
+    {
+      question: "What are Dry Browns?",
+      answer: "Dry Browns refers to carbon-rich materials that provide energy for microbes and help balance moisture. (i.e. dry leaves, shredded paper/cardboard, sawdust, straw/hay and wood chips)"
+    },
+    {
+      question: "What are Greens?",
+      answer: "Greens are fresh, moist, nitrogen-rich materials that help microbes grow and reproduce. (i.e. Fruit & vegetable scraps, grass clippings, coffee grounds, tea leaves, fresh leaves)"
+    },
+    {
+      question: "What materials are bad for compost?",
+      answer: "Avoid Meat, dairy, oily foods, pet waste and plastics"
     },
   ];
 
