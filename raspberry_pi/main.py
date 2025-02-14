@@ -6,17 +6,17 @@ import uuid
 import math
 import paho.mqtt.client as mqtt
 
-# Constants for Temperature Sensor (Si7021)
+# Constants for temperature sensor (Si7021)
 SI7021_ADDR = 0x40
 SI7021_TEMP_CMD = 0xF3
 
-# Constants for Moisture Sensor via ADC (ADS1115)
+# Constants for moisture sensor via ADC (ADS1115)
 ADS1115_ADDR = 0x48
 ADS1115_CONVERSION_REG = 0x00
 ADS1115_CONFIG_REG = 0x01
 ADS1115_CONFIG = 0x8583
 
-# Constants for Gas Sensor (CCS811)
+# Constants for gas sensor (CCS811)
 CCS811_ADDR = 0x5A
 CCS811_STATUS_REG = 0x00
 CCS811_MEAS_MODE_REG = 0x01
@@ -24,18 +24,18 @@ CCS811_ALG_RESULT_DATA = 0x02
 CCS811_APP_START = 0xF4
 CCS811_HW_ID = 0x20
 
-# Global I2C bus initialization
+# Global I2C bus initialisation
 BUS = smbus2.SMBus(1)
 
-# WiFi Credentials (Handled by Raspberry Pi OS)
-SSID = "ImperialWifi"  # No need to manually connect in script
+# WiFi Credentials (handled by RasPi OS)
+SSID = "ImperialWifi"
 PASSWORD = "imperialwifi1!"
 
 # MQTT Broker Configuration
 MQTT_BROKER = "test.mosquitto.org"
 BASE_TOPIC = "IC.embedded/samsungsmartfridge/compost"
 
-# Initialize MQTT topic and device ID using last 6 hex characters of MAC
+# Initialize MQTT topic; device ID use last 6 hex of MAC
 DEVICE_ID = hex(uuid.getnode())[-6:]
 MQTT_TOPIC = f"{BASE_TOPIC}/{DEVICE_ID}"
 
@@ -59,19 +59,19 @@ def get_ip():
 
 def read_temperature():
     try:
-        # Set up a command for measuring temperature
+        # Command for measuring temperature
         cmd_meas_temp = smbus2.i2c_msg.write(SI7021_ADDR, [SI7021_TEMP_CMD])
         
-        # Set up a read command that reads two bytes of data
+        # Command that reads two bytes of data
         read_result = smbus2.i2c_msg.read(SI7021_ADDR, 2)
 
         BUS.i2c_rdwr(cmd_meas_temp)
-        time.sleep(0.1)  # Allow sensor time to measure
+        time.sleep(0.1)
         BUS.i2c_rdwr(read_result)
 
         # Combine bytes
         raw_temp = (read_result.buf[0][0] << 8) | read_result.buf[1][0]
-        temp_celcius = (175.72 * raw_temp / 65536) - 46.85  # datasheet
+        temp_celcius = (175.72 * raw_temp / 65536) - 46.85  # Datasheet
 
         return temp_celcius
 
@@ -81,16 +81,14 @@ def read_temperature():
 
 def read_moisture():
     try:
-        # Convert CONFIG to two bytes in big-endian order
         config_bytes = ADS1115_CONFIG.to_bytes(2, byteorder='big')
     
-        # Write the configuration to the CONFIG_REG to start a single-shot conversion
+        # Start single conversion by writing configuration to CONFIG_REG
         BUS.write_i2c_block_data(ADS1115_ADDR, ADS1115_CONFIG_REG, list(config_bytes))
     
-        # Wait for conversion to complete (100ms is sufficient for 128 SPS)
         time.sleep(0.1)
     
-        # Read the conversion result (2 bytes from the conversion register)
+        # Read conversion result (2 bytes from conversion reg)
         data = BUS.read_i2c_block_data(ADS1115_ADDR, ADS1115_CONVERSION_REG, 2)
         adc_value = int.from_bytes(data, byteorder='big', signed=True)
         
@@ -98,7 +96,7 @@ def read_moisture():
         max_moisture = 1700
         
         moisture_percent = ((adc_value - min_moisture) / (max_moisture - min_moisture)) * 100
-        moisture_percent = max(0, min(100, moisture_percent))  # Clamp to 0-100%
+        moisture_percent = max(0, min(100, moisture_percent))
         
         return moisture_percent
     
@@ -110,9 +108,9 @@ def initialize_gas_sensor():
     try:
         print("Resetting CCS811 sensor...")
         
-        # Start the application firmware on the CCS811
+        # Start application firmware on CCS811
         BUS.write_byte(CCS811_ADDR, CCS811_APP_START)
-        time.sleep(1)  # Allow the sensor to start
+        time.sleep(1)
 
         # Set mode to read every second
         BUS.write_byte_data(CCS811_ADDR, CCS811_MEAS_MODE_REG, 0x10)
@@ -150,7 +148,6 @@ def read_gas_sensor(num_samples=5):
 
         time.sleep(0.5)
         
-    # Compute average if we have valid readings, otherwise return None
     if co2_readings and tvoc_readings:
         print(f"len(co2_readings): {len(co2_readings)}, len(tvoc_readings): {len(tvoc_readings)}")
         avg_co2 = sum(co2_readings) / len(co2_readings)
@@ -163,7 +160,7 @@ def temperature_score(temp):
     optimal_temp = 55
     acceptable_range = 15
     
-    # Linear peak function: calcs temp score where ideal temp (55°C) gets highest score
+    # Linear peak function: ideal temp (55°C) gets highest score
     score = 1 - abs((temp - optimal_temp) / acceptable_range)
     return max(0, score)
 
@@ -171,17 +168,17 @@ def moisture_score(moisture):
     optimal_moisture = 55
     acceptable_range = 15
     
-    # Linear peak function: calcs moisture score where ideal range (50-60%) gets highest score
+    # Linear peak function: ideal range (50-60%) gets highest score
     score = 1 - abs((moisture - optimal_moisture) / acceptable_range)
     return max(0, score)
 
 def aeration_score(co2, tvoc):
-    # Bell-shaped curve: calcs aeration score where ideal range CO2 & TVOC gets highest score
-    optimal_co2 = 1200              # Around 1000-1500 ppm is ideal
+    # Bell-shaped curve: ideal range gets highest score
+    optimal_co2 = 1200              # ~1000-1500 ppm ideal
     acceptable_co2_range = 1000     # Spread of ideal range (500-2500)
     co2_score = math.exp(-((co2 - optimal_co2) / acceptable_co2_range) ** 2)
     
-    optimal_tvoc = 300              # Around 200-400 ppb is ideal
+    optimal_tvoc = 300              # ~200-400 ppb ideal
     acceptable_tvoc_range = 300     # Spread of ideal range (0-600)
     tvoc_score = math.exp(-((tvoc - optimal_tvoc) / acceptable_tvoc_range) ** 2)
     
@@ -201,7 +198,7 @@ def main():
     
     client = setup_mqtt()
     
-    initialize_gas_sensor() # Initialize the gas sensor (if needed)
+    initialize_gas_sensor()
     
     while True:
         start_time = time.time()
@@ -237,7 +234,7 @@ def main():
         end_time = time.time()
         elapsed_time = end_time - start_time
 
-        time.sleep(5 - elapsed_time) # Read every second
+        time.sleep(5 - elapsed_time)
     
 if __name__ == "__main__":
     main()
