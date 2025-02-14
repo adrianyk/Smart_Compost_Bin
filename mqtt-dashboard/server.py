@@ -21,13 +21,13 @@ if not os.path.exists(DEVICES_DIR):
 def get_csv_filename(device_id):
     return os.path.join(DEVICES_DIR, f"{device_id}.csv")
 
-# Ensure CSV file exists with proper headers
+# Ensure CSV file exists with proper headxers
 def initialize_csv(device_id):
     csv_file = get_csv_filename(device_id)
     if not os.path.exists(csv_file) or os.stat(csv_file).st_size == 0:
         with open(csv_file, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["timestamp", "temperature", "moisture", "CO2", "TVOC", "chi_score", "aeration_score"])
+            writer.writerow(["timestamp", "temperature", "moisture", "CO2", "TVOC", "aeration_score", "chi_score"])
 
 # API to get the list of devices (CSV files)
 @app.route("/devices", methods=["GET"])
@@ -53,8 +53,8 @@ def get_latest_data(device_id):
                 "moisture": float(last_entry[2]),
                 "CO2": float(last_entry[3]),
                 "TVOC": float(last_entry[4]),
-                "chi_score": float(last_entry[5]),
-                "aeration_score": float(last_entry[6])
+                "aeration_score": float(last_entry[5]),
+                "chi_score": float(last_entry[6]),
             }), 200
     return jsonify({"error": "No data available"}), 404
 
@@ -68,9 +68,14 @@ def get_history(device_id):
     with open(csv_file, "r") as f:
         reader = list(csv.reader(f))
         if len(reader) > 1:
-            data = [
-                {"timestamp": row[0], "temperature": float(row[1]), "moisture": float(row[2]),
-                 "CO2": float(row[3]), "TVOC": float(row[4]), "chi_score": float(row[5]), "aeration_score": float(row[6])}
+            data = [{
+                "timestamp": row[0], 
+                "temperature": float(row[1]),
+                "moisture": float(row[2]),
+                "CO2": float(row[3]),
+                "TVOC": float(row[4]),
+                "aeration_score": float(row[5]), 
+                "chi_score": float(row[6])}
                 for row in reader[1:]  # Skip header row
             ]
             return jsonify(data[-60:]), 200  # Return last 60 entries
@@ -98,8 +103,8 @@ def on_message(client, userdata, msg):
                 payload.get("moisture"),
                 payload.get("CO2"),
                 payload.get("TVOC"),
-                payload.get("chi_score"),
                 payload.get("aeration_score"),
+                payload.get("chi_score"),
             ])
         print(f"Data saved for {device_id}: {payload}")
 

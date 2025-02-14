@@ -57,7 +57,7 @@ const DataChart = ({ device }) => {
     CO2: "green",
     TVOC: "purple",
     CHI: "darkred",
-    AERATION: "teal",
+    Aeration: "teal",
   };
 
   const chartData = {
